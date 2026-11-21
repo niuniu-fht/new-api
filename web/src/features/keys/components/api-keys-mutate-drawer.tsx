@@ -78,6 +78,7 @@ import {
   updateApiKey,
   getApiKey,
   getTokenAutoGroups,
+  getPricingForGroups,
 } from '../api'
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import {
@@ -86,6 +87,7 @@ import {
   getApiKeyFormDefaultValues,
   transformFormDataToPayload,
   transformApiKeyToFormDefaults,
+  summarizeGroupPricing,
 } from '../lib'
 import type { ApiKey } from '../types'
 import {
@@ -138,6 +140,14 @@ export function ApiKeysMutateDrawer({
     staleTime: 0,
   })
 
+  // Fetch pricing data for group summaries (price range / model count)
+  const { data: pricingData } = useQuery({
+    queryKey: ['pricing-for-groups'],
+    queryFn: async () => await getPricingForGroups(),
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const {
     data: apiKeyData,
     isFetched: apiKeyFetched,
@@ -162,15 +172,29 @@ export function ApiKeysMutateDrawer({
   })
 
   const models = modelsData?.data || []
+  const pricingModels = pricingData?.data || []
+  const pricingGroupRatio = pricingData?.group_ratio || {}
   const groups = useMemo<ApiKeyGroupOption[]>(
     () =>
-      Object.entries(groupsData?.data || {}).map(([key, info]) => ({
-        value: key,
-        label: key,
-        desc: info.desc ? translateServerText(t, info.desc) : key,
-        ratio: info.ratio,
-      })),
-    [groupsData, t]
+      Object.entries(groupsData?.data || {}).map(([key, info]) => {
+        const summary = summarizeGroupPricing(
+          pricingModels,
+          key,
+          pricingGroupRatio[key],
+          t
+        )
+        return {
+          value: key,
+          label: key,
+          desc: info.desc ? translateServerText(t, info.desc) : undefined,
+          ratio: info.ratio,
+          billingMode: summary.billingMode,
+          priceText: summary.priceText,
+          priceDetail: summary.priceDetail,
+          category: info.category,
+        }
+      }),
+    [groupsData, pricingModels, pricingGroupRatio, t]
   )
   const backendHasAuto = groups.some((g) => g.value === 'auto')
   const availableAutoGroupNames = useMemo(
@@ -204,6 +228,20 @@ export function ApiKeysMutateDrawer({
     resolver: zodResolver(schema),
     defaultValues: getApiKeyFormDefaultValues(defaultUseAutoGroup),
   })
+
+  // Prefill the group with the last one used in a previous create flow.
+  useEffect(() => {
+    if (isUpdate || !groupsFetched || groups.length === 0) return
+    if (form.getValues('group')) return
+    try {
+      const last = localStorage.getItem('newapi:last-group')
+      if (last && groups.some((group) => group.value === last)) {
+        form.setValue('group', last, { shouldDirty: false })
+      }
+    } catch {
+      // storage unavailable; skip prefill
+    }
+  }, [isUpdate, groupsFetched, groups, form])
 
   // Load existing data when updating
   useEffect(() => {
@@ -426,6 +464,11 @@ export function ApiKeysMutateDrawer({
                         value={field.value}
                         onValueChange={(group) => {
                           field.onChange(group)
+                          try {
+                            localStorage.setItem('newapi:last-group', group)
+                          } catch {
+                            // storage unavailable; skip remembering
+                          }
                           if (group === 'auto') {
                             form.setValue('cross_group_retry', true, {
                               shouldDirty: true,

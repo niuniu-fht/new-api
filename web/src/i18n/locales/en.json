@@ -2976,7 +2976,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Related Projects",
     "footer.defaultCopyright": "All rights reserved.",
-    "footer.new\u0061pi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
+    "footer.newapi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
     "For a stronger password": "For a stronger password",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment",
@@ -7781,6 +7781,22 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Domestic Models": "Domestic Models",
+    "Price {{range}} / 1M input · {{count}}": "Price {{range}} / 1M input · {{count}}",
+    "Price {{range}} / request · {{count}}": "Price {{range}} / request · {{count}}",
+    "{{count}} models_other": "{{count}} models",
+    "Model Categories": "Model Categories",
+    "Model Families": "Model Families",
+    "Text Models": "Text Models",
+    "Image Models": "Image Models",
+    "Video Models": "Video Models",
+    "Audio Models": "Audio Models",
+    "Group categories": "Group categories",
+    "Group category": "Group category",
+    "JSON map of group → category shown in the API-key group picker (e.g. GPT, Claude). Unmapped groups are categorized automatically.": "JSON map of group → category shown in the API-key group picker (e.g. GPT, Claude). Unmapped groups are categorized automatically.",
+    "{{model}}: {{price}} / 1M input": "{{model}}: {{price}} / 1M input",
+    "{{model}}: {{price}} / request": "{{model}}: {{price}} / request",
+    "View all models": "View all models"
   }
 }

@@ -125,3 +125,20 @@ export async function fetchTokenKeysBatch(ids: number[]): Promise<{
   const res = await api.post('/api/token/batch/keys', { ids })
   return res.data
 }
+
+// Fetch public pricing data (models + group ratios) for group summaries
+export async function getPricingForGroups(): Promise<{
+  success: boolean
+  message?: string
+  data?: Array<{
+    model_name: string
+    quota_type: number
+    model_ratio: number
+    model_price?: number
+    enable_groups?: string[]
+  }>
+  group_ratio?: Record<string, number>
+}> {
+  const res = await api.get('/api/pricing')
+  return res.data
+}

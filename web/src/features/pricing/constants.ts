@@ -107,6 +107,84 @@ export function getEndpointTypeLabels(
   }
 }
 
+/**
+ * Modality buckets that group endpoint types into the top-level catalog
+ * categories shown as tabs on the pricing page.
+ */
+export const MODEL_CATEGORIES = {
+  ALL: 'all',
+  TEXT: 'text',
+  IMAGE: 'image',
+  VIDEO: 'video',
+  AUDIO: 'audio',
+} as const
+
+export type ModelCategory = (typeof MODEL_CATEGORIES)[keyof typeof MODEL_CATEGORIES]
+
+export const MODEL_CATEGORY_ORDER: ModelCategory[] = [
+  MODEL_CATEGORIES.TEXT,
+  MODEL_CATEGORIES.IMAGE,
+  MODEL_CATEGORIES.VIDEO,
+  MODEL_CATEGORIES.AUDIO,
+]
+
+export function getModelCategoryLabels(
+  t: TFunction
+): Record<ModelCategory, string> {
+  return {
+    [MODEL_CATEGORIES.ALL]: t('All Types'),
+    [MODEL_CATEGORIES.TEXT]: t('Text Models'),
+    [MODEL_CATEGORIES.IMAGE]: t('Image Models'),
+    [MODEL_CATEGORIES.VIDEO]: t('Video Models'),
+    [MODEL_CATEGORIES.AUDIO]: t('Audio Models'),
+  }
+}
+
+/** Ordered model-family rules: lowercase prefix -> display label. */
+export const MODEL_SERIES_RULES: Array<[string, string]> = [
+  ['gpt', 'GPT'],
+  ['claude', 'Claude'],
+  ['gemini', 'Gemini'],
+  ['glm', 'GLM'],
+  ['kimi', 'Kimi'],
+  ['deepseek', 'DeepSeek'],
+  ['qwen', 'Qwen'],
+  ['minimax', 'Minimax'],
+  ['grok', 'Grok'],
+  ['doubao', 'Doubao'],
+  ['seedance', 'Seedance'],
+  ['kling', 'Kling'],
+  ['wan', 'Wan'],
+  ['sora', 'Sora'],
+  ['flux', 'Flux'],
+  ['suno', 'Suno'],
+  ['llama', 'Llama'],
+  ['mistral', 'Mistral'],
+  ['nova', 'Nova'],
+  ['mimo', 'MiMo'],
+  ['omni', 'omni'],
+]
+
+/** Resolve the model-family label for a model name, if any rule matches. */
+export function getModelSeries(modelName: string): string | undefined {
+  const lower = modelName.toLowerCase()
+  for (const [prefix, label] of MODEL_SERIES_RULES) {
+    if (lower.startsWith(prefix)) return label
+  }
+  return undefined
+}
+
+/** Map a model's supported endpoint types to a modality bucket. */
+export function getModelCategory(endpoints?: string[]): ModelCategory {
+  const list = endpoints || []
+  if (list.some((e) => e.includes('video'))) return MODEL_CATEGORIES.VIDEO
+  if (list.some((e) => e.includes('image'))) return MODEL_CATEGORIES.IMAGE
+  if (list.some((e) => e.includes('audio') || e.includes('tts'))) {
+    return MODEL_CATEGORIES.AUDIO
+  }
+  return MODEL_CATEGORIES.TEXT
+}
+
 /** Filter section keys */
 export const FILTER_SECTIONS = {
   PRICING_TYPE: 'pricingType',

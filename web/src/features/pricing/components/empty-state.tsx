@@ -25,6 +25,9 @@ export interface EmptyStateProps {
   searchQuery?: string
   hasActiveFilters: boolean
   onClearFilters: () => void
+  /** Optional primary guidance action, e.g. "View all models". */
+  actionLabel?: string
+  onAction?: () => void
 }
 
 export function EmptyState(props: EmptyStateProps) {
@@ -48,11 +51,18 @@ export function EmptyState(props: EmptyStateProps) {
           : t('No models match your current filters.')}
       </p>
 
-      {(props.hasActiveFilters || hasSearch) && (
-        <Button variant='outline' size='sm' onClick={props.onClearFilters}>
-          {t('Clear all filters')}
-        </Button>
-      )}
+      <div className='flex flex-wrap items-center justify-center gap-2'>
+        {props.actionLabel && props.onAction && (
+          <Button size='sm' onClick={props.onAction}>
+            {props.actionLabel}
+          </Button>
+        )}
+        {(props.hasActiveFilters || hasSearch) && (
+          <Button variant='outline' size='sm' onClick={props.onClearFilters}>
+            {t('Clear all filters')}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

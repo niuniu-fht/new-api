@@ -98,6 +98,7 @@ type GroupRatioVisualEditorProps = {
   groupRatio: string
   topupGroupRatio: string
   userUsableGroups: string
+  groupCategory: string
   groupGroupRatio: string
   autoGroups: string
   maxTokenAutoGroupsField: ReactNode
@@ -112,6 +113,7 @@ type GroupPricingRow = {
   topupRatio: string
   selectable: boolean
   description: string
+  category: string
 }
 
 type RegistryEntry = {
@@ -159,15 +161,18 @@ function parseNestedRatioMap(
 function buildGroupPricingRows(
   groupRatio: string,
   userUsableGroups: string,
-  topupGroupRatio: string
+  topupGroupRatio: string,
+  groupCategory: string
 ): GroupPricingRow[] {
   const ratioMap = parseRatioMap(groupRatio)
   const usableMap = parseUsableMap(userUsableGroups)
   const topupMap = parseRatioMap(topupGroupRatio)
+  const categoryMap = parseUsableMap(groupCategory)
   const names = new Set([
     ...Object.keys(ratioMap),
     ...Object.keys(usableMap),
     ...Object.keys(topupMap),
+    ...Object.keys(categoryMap),
   ])
 
   return [...names].map((name) => ({
@@ -177,6 +182,7 @@ function buildGroupPricingRows(
     topupRatio: Object.hasOwn(topupMap, name) ? String(topupMap[name]) : '',
     selectable: Object.hasOwn(usableMap, name),
     description: String(usableMap[name] ?? ''),
+    category: String(categoryMap[name] ?? ''),
   }))
 }
 
@@ -184,6 +190,7 @@ function serializeGroupPricingRows(rows: GroupPricingRow[]) {
   const groupRatio: Record<string, number> = {}
   const userUsableGroups: Record<string, string> = {}
   const topupGroupRatio: Record<string, number> = {}
+  const groupCategory: Record<string, string> = {}
 
   for (const row of rows) {
     const name = row.name.trim()
@@ -196,12 +203,17 @@ function serializeGroupPricingRows(rows: GroupPricingRow[]) {
     if (topup !== '' && Number.isFinite(Number(topup))) {
       topupGroupRatio[name] = Number(topup)
     }
+    const category = row.category.trim()
+    if (category !== '') {
+      groupCategory[name] = category
+    }
   }
 
   return {
     GroupRatio: JSON.stringify(groupRatio, null, 2),
     UserUsableGroups: JSON.stringify(userUsableGroups, null, 2),
     TopupGroupRatio: JSON.stringify(topupGroupRatio, null, 2),
+    GroupCategory: JSON.stringify(groupCategory, null, 2),
   }
 }
 
@@ -211,18 +223,21 @@ function groupPricingSignature(rows: GroupPricingRow[]): string {
     groupRatio: parseRatioMap(serialized.GroupRatio),
     userUsableGroups: parseUsableMap(serialized.UserUsableGroups),
     topupGroupRatio: parseRatioMap(serialized.TopupGroupRatio),
+    groupCategory: parseUsableMap(serialized.GroupCategory),
   })
 }
 
 function sourceGroupPricingSignature(
   groupRatio: string,
   userUsableGroups: string,
-  topupGroupRatio: string
+  topupGroupRatio: string,
+  groupCategory: string
 ): string {
   return JSON.stringify({
     groupRatio: parseRatioMap(groupRatio),
     userUsableGroups: parseUsableMap(userUsableGroups),
     topupGroupRatio: parseRatioMap(topupGroupRatio),
+    groupCategory: parseUsableMap(groupCategory),
   })
 }
 
@@ -273,6 +288,7 @@ export const GroupRatioVisualEditor = memo(function GroupRatioVisualEditor({
   groupRatio,
   topupGroupRatio,
   userUsableGroups,
+  groupCategory,
   groupGroupRatio,
   autoGroups,
   maxTokenAutoGroupsField,
@@ -370,6 +386,7 @@ export const GroupRatioVisualEditor = memo(function GroupRatioVisualEditor({
           groupRatio={groupRatio}
           userUsableGroups={userUsableGroups}
           topupGroupRatio={topupGroupRatio}
+          groupCategory={groupCategory}
           onChange={onChange}
           onShowDetail={setDetailGroup}
         />
@@ -475,6 +492,7 @@ type GroupPricingTableProps = {
   groupRatio: string
   userUsableGroups: string
   topupGroupRatio: string
+  groupCategory: string
   onChange: (field: string, value: string) => void
   onShowDetail: (name: string) => void
 }
@@ -483,20 +501,22 @@ function GroupPricingTable({
   groupRatio,
   userUsableGroups,
   topupGroupRatio,
+  groupCategory,
   onChange,
   onShowDetail,
 }: GroupPricingTableProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [rows, setRows] = useState<GroupPricingRow[]>(() =>
-    buildGroupPricingRows(groupRatio, userUsableGroups, topupGroupRatio)
+    buildGroupPricingRows(groupRatio, userUsableGroups, topupGroupRatio, groupCategory)
   )
 
   useEffect(() => {
     const incomingSignature = sourceGroupPricingSignature(
       groupRatio,
       userUsableGroups,
-      topupGroupRatio
+      topupGroupRatio,
+      groupCategory
     )
     setRows((currentRows) => {
       if (groupPricingSignature(currentRows) === incomingSignature) {
@@ -505,10 +525,11 @@ function GroupPricingTable({
       return buildGroupPricingRows(
         groupRatio,
         userUsableGroups,
-        topupGroupRatio
+        topupGroupRatio,
+        groupCategory
       )
     })
-  }, [groupRatio, userUsableGroups, topupGroupRatio])
+  }, [groupRatio, userUsableGroups, topupGroupRatio, groupCategory])
 
   const emitRows = useCallback(
     (nextRows: GroupPricingRow[]) => {
@@ -517,6 +538,7 @@ function GroupPricingTable({
       onChange('GroupRatio', serialized.GroupRatio)
       onChange('UserUsableGroups', serialized.UserUsableGroups)
       onChange('TopupGroupRatio', serialized.TopupGroupRatio)
+      onChange('GroupCategory', serialized.GroupCategory)
     },
     [onChange]
   )
@@ -551,6 +573,7 @@ function GroupPricingTable({
         topupRatio: '',
         selectable: true,
         description: '',
+        category: '',
       },
       ...rows,
     ])
@@ -576,11 +599,18 @@ function GroupPricingTable({
   }, [rows])
 
   const query = search.trim().toLowerCase()
+  const knownCategories = useMemo(
+    () =>
+      [...new Set(rows.map((row) => row.category.trim()).filter(Boolean))],
+    [rows]
+  )
+
   const visibleRows = rows.filter(
     (row) =>
       !query ||
       row.name.toLowerCase().includes(query) ||
-      row.description.toLowerCase().includes(query)
+      row.description.toLowerCase().includes(query) ||
+      row.category.toLowerCase().includes(query)
   )
 
   return (
@@ -738,6 +768,29 @@ function GroupPricingTable({
                       -
                     </span>
                   ),
+              },
+              {
+                id: 'category',
+                header: t('Category'),
+                className: 'min-w-36',
+                cell: (row) => (
+                  <>
+                    <Input
+                      value={row.category}
+                      list='group-category-options'
+                      aria-label={t('Group category')}
+                      placeholder={t('Auto')}
+                      onChange={(event) =>
+                        updateRow(row._id, 'category', event.target.value)
+                      }
+                    />
+                    <datalist id='group-category-options'>
+                      {knownCategories.map((category) => (
+                        <option key={category} value={category} />
+                      ))}
+                    </datalist>
+                  </>
+                ),
               },
               {
                 id: 'actions',

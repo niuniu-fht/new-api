@@ -16,15 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Check, ChevronsUpDown } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Check, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Command,
-  CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -34,6 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Highlight } from '@/components/highlight'
 import { useMediaQuery } from '@/hooks'
 import { cn } from '@/lib/utils'
 
@@ -42,12 +42,24 @@ import {
   AutoGroupFlowBorder,
   GroupRatioBadge,
 } from './auto-group-visuals'
+import {
+  GROUP_CATEGORY_LABEL_KEYS,
+  groupOptionsByCategory,
+} from '../lib/group-category'
 
 export type ApiKeyGroupOption = {
   value: string
   label: string
   desc?: string
   ratio?: number | string
+  /** Per-request billing marker used for category classification. */
+  billingMode?: string
+  /** Pre-formatted price summary, e.g. "¥0.4–¥2 / 1M 输入 · 8 个模型". */
+  priceText?: string
+  /** Per-model price lines shown in the card tooltip. */
+  priceDetail?: string
+  /** Administrator-configured category name. */
+  category?: string
 }
 
 type ApiKeyGroupComboboxProps = {
@@ -68,6 +80,7 @@ export function ApiKeyGroupCombobox({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const [expanded, setExpanded] = useState<string[]>([])
   const shouldReduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const selectedOption = options.find((option) => option.value === value)
   const isAutoSelected = selectedOption?.value === 'auto'
@@ -82,10 +95,47 @@ export function ApiKeyGroupCombobox({
         option.value.toLowerCase().includes(search) ||
         option.label.toLowerCase().includes(search) ||
         option.desc?.toLowerCase().includes(search) ||
+        option.category?.toLowerCase().includes(search) ||
+        option.priceText?.toLowerCase().includes(search) ||
         ratioText.includes(search)
       )
     })
   }, [options, searchValue])
+
+  const categorizedOptions = useMemo(
+    () =>
+      groupOptionsByCategory(filteredOptions, (key) =>
+        t(GROUP_CATEGORY_LABEL_KEYS[key])
+      ),
+    [filteredOptions, t]
+  )
+
+  // While searching, expand every matching category; when the search is
+  // cleared, restore the pre-search expansion (first category by default).
+  const preSearchExpanded = useRef<string[] | null>(null)
+  useEffect(() => {
+    if (searchValue.trim()) {
+      if (preSearchExpanded.current === null) {
+        preSearchExpanded.current = expanded
+      }
+      setExpanded(categorizedOptions.map((bucket) => bucket.key))
+    } else if (preSearchExpanded.current !== null) {
+      setExpanded(preSearchExpanded.current)
+      preSearchExpanded.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchValue, categorizedOptions])
+
+  // Categories start collapsed; they only open on click or while searching.
+  const effectiveExpanded = expanded
+
+  const toggleBucket = (key: string) => {
+    setExpanded((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    )
+  }
 
   const handleSelect = (selectedValue: string) => {
     onValueChange(selectedValue)
@@ -94,7 +144,13 @@ export function ApiKeyGroupCombobox({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) setSearchValue('')
+      }}
+    >
       <PopoverTrigger
         render={
           <Button
@@ -128,14 +184,24 @@ export function ApiKeyGroupCombobox({
                 {selectedOption.desc}
               </span>
             )}
+            {selectedOption?.priceText && (
+              <span className='text-foreground/70 block truncate text-[11px] font-medium'>
+                {selectedOption.priceText}
+              </span>
+            )}
           </span>
-          <span className='hidden sm:block'>
-            <GroupRatioBadge
-              ratio={selectedOption?.ratio}
-              isAuto={isAutoSelected}
-              shouldReduceMotion={shouldReduceMotion}
-            />
-          </span>
+          {selectedOption &&
+            (isAutoSelected ? (
+              <span className='hidden sm:block'>
+                <GroupRatioBadge
+                  ratio={selectedOption.ratio}
+                  isAuto={isAutoSelected}
+                  shouldReduceMotion={shouldReduceMotion}
+                />
+              </span>
+            ) : (
+              <GroupRatioChip ratio={selectedOption.ratio} />
+            ))}
         </span>
         <ChevronsUpDown
           aria-hidden='true'
@@ -143,7 +209,7 @@ export function ApiKeyGroupCombobox({
         />
       </PopoverTrigger>
       <PopoverContent
-        className='data-closed:zoom-out-100 data-open:zoom-in-100 data-[side=bottom]:slide-in-from-top-0 data-[side=left]:slide-in-from-right-0 data-[side=right]:slide-in-from-left-0 data-[side=top]:slide-in-from-bottom-0 w-[var(--anchor-width)] overflow-hidden rounded-xl p-0 shadow-lg data-closed:duration-75 data-open:duration-100'
+        className='bg-popover text-popover-foreground ring-foreground/10 w-[var(--anchor-width)] overflow-hidden rounded-xl p-0 shadow-lg'
         onWheel={(event) => event.stopPropagation()}
         onTouchMove={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
@@ -154,61 +220,151 @@ export function ApiKeyGroupCombobox({
             value={searchValue}
             onValueChange={setSearchValue}
           />
-          <CommandList className='max-h-[360px]'>
-            <CommandEmpty>{t('No group found.')}</CommandEmpty>
-            <CommandGroup>
-              {filteredOptions.map((option) => {
-                const isAutoOption = option.value === 'auto'
-
-                return (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    data-auto-group-effect={isAutoOption ? 'option' : undefined}
-                    onSelect={() => handleSelect(option.value)}
-                    className={cn(
-                      'data-[selected=true]:bg-muted items-start gap-3 rounded-lg px-3 py-3 transition-colors',
-                      isAutoOption &&
-                        cn(
-                          AUTO_GROUP_FRAME_CLASS_NAME,
-                          'border-primary/35 data-[selected=true]:border-primary/55'
-                        )
-                    )}
+          <CommandList className='border-border/60 no-scrollbar max-h-[360px] overflow-y-auto overflow-x-hidden border-t'>
+            {searchValue.trim() && categorizedOptions.length === 0 && (
+              <div className='text-muted-foreground px-3 py-6 text-center text-sm'>
+                {t('No group found.')}
+              </div>
+            )}
+            {categorizedOptions.map((bucket, bucketIndex) => {
+              const isExpanded = effectiveExpanded.includes(bucket.key)
+              return (
+                <div
+                  key={bucket.key}
+                  className={cn(
+                    'py-1.5',
+                    bucketIndex > 0 && 'border-border/70 mt-1.5 border-t'
+                  )}
+                >
+                  <button
+                    type='button'
+                    tabIndex={-1}
+                    aria-expanded={isExpanded}
+                    onMouseDown={(event) => {
+                      // keep focus where it is so cmdk does not reset its
+                      // highlighted item and scroll the list unexpectedly
+                      event.preventDefault()
+                      event.stopPropagation()
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      toggleBucket(bucket.key)
+                    }}
+                    className='hover:bg-muted/50 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-foreground transition-colors'
                   >
-                    {isAutoOption && (
-                      <AutoGroupFlowBorder
-                        shouldReduceMotion={shouldReduceMotion}
-                      />
-                    )}
-                    <Check
+                    <span className='flex-1'>
+                      <Highlight text={bucket.label} query={searchValue} />
+                    </span>
+                    <span className='text-muted-foreground text-xs tabular-nums'>
+                      {bucket.options.length}
+                    </span>
+                    <ChevronDown
                       aria-hidden='true'
                       className={cn(
-                        'mt-0.5 size-4',
-                        value === option.value ? 'opacity-100' : 'opacity-0'
+                        'text-muted-foreground/70 size-3.5 shrink-0 transition-transform duration-200',
+                        isExpanded && 'rotate-180'
                       )}
                     />
-                    <span className='min-w-0 flex-1'>
-                      <span className='block truncate font-medium'>
-                        {option.label}
-                      </span>
-                      {option.desc && (
-                        <span className='text-muted-foreground block truncate text-xs'>
-                          {option.desc}
-                        </span>
-                      )}
-                    </span>
-                    <GroupRatioBadge
-                      ratio={option.ratio}
-                      isAuto={isAutoOption}
-                      shouldReduceMotion={shouldReduceMotion}
-                    />
-                  </CommandItem>
-                )
-              })}
-            </CommandGroup>
+                  </button>
+                  {isExpanded && (
+                    <div className='flex flex-col gap-1.5 px-2 pt-0.5 pb-2'>
+                      {bucket.options.map((option) => {
+                        const isAutoOption = option.value === 'auto'
+
+                        return (
+                          <CommandItem
+                            key={option.value}
+                            value={option.value}
+                            data-auto-group-effect={
+                              isAutoOption ? 'option' : undefined
+                            }
+                            onSelect={() => handleSelect(option.value)}
+                            className={cn(
+                              'bg-card hover:border-ring/45 hover:bg-muted/45 hover:shadow-md data-[selected=true]:border-ring/45 data-[selected=true]:bg-muted/50 items-start gap-3 rounded-xl border border-border px-3.5 py-3 shadow-sm transition-all',
+                              isAutoOption &&
+                                cn(
+                                  AUTO_GROUP_FRAME_CLASS_NAME,
+                                  'border-primary/35 data-[selected=true]:border-primary/55'
+                                )
+                            )}
+                          >
+                            {isAutoOption && (
+                              <AutoGroupFlowBorder
+                                shouldReduceMotion={shouldReduceMotion}
+                              />
+                            )}
+                            <Check
+                              aria-hidden='true'
+                              className={cn(
+                                'mt-0.5 size-4',
+                                value === option.value
+                                  ? 'opacity-100'
+                                  : 'opacity-0'
+                              )}
+                            />
+                            <span className='min-w-0 flex-1'>
+                              <span className='block truncate font-medium'>
+                                <Highlight
+                                  text={option.label}
+                                  query={searchValue}
+                                />
+                              </span>
+                              {option.desc && (
+                                <span className='text-muted-foreground block truncate text-xs'>
+                                  <Highlight
+                                    text={option.desc}
+                                    query={searchValue}
+                                  />
+                                </span>
+                              )}
+                              {option.priceText && (
+                                <span
+                                  className='text-foreground/70 block truncate text-[11px] font-medium'
+                                  title={option.priceDetail}
+                                >
+                                  {option.priceText}
+                                </span>
+                              )}
+                            </span>
+                            {isAutoOption ? (
+                              <GroupRatioBadge
+                                ratio={option.ratio}
+                                isAuto={isAutoOption}
+                                shouldReduceMotion={shouldReduceMotion}
+                              />
+                            ) : (
+                              <GroupRatioChip ratio={option.ratio} />
+                            )}
+                          </CommandItem>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
+  )
+}
+
+/** Teal outline pill showing the group ratio, e.g. "0.2x 倍率". */
+function GroupRatioChip({ ratio }: { ratio?: number | string }) {
+  const { t } = useTranslation()
+
+  if (ratio === undefined || ratio === null || ratio === '') {
+    return null
+  }
+
+  return (
+    <Badge
+      variant='outline'
+      className='text-emerald-700 dark:text-emerald-300 border-emerald-600/40 bg-emerald-500/10 h-5 shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap'
+    >
+      {`${ratio}x ${t('Multiplier')}`}
+    </Badge>
   )
 }

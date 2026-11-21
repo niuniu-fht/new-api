@@ -22,6 +22,9 @@ import {
   QUOTA_TYPES,
   QUOTA_TYPE_VALUES,
   ENDPOINT_TYPES,
+  MODEL_CATEGORIES,
+  getModelCategory,
+  getModelSeries,
   type QuotaTypeOption,
   type SortOption,
 } from '../constants'
@@ -69,7 +72,12 @@ export function filterByVendor(
   vendor: string
 ): PricingModel[] {
   if (vendor === FILTER_ALL) return models
-  return models.filter((m) => m.vendor_name === vendor)
+  return models.filter((m) => matchesVendorOrSeries(m, vendor))
+}
+
+function matchesVendorOrSeries(m: PricingModel, vendor: string): boolean {
+  if (m.vendor_name === vendor) return true
+  return getModelSeries(m.model_name) === vendor
 }
 
 /**
@@ -129,13 +137,24 @@ export function filterByQuotaType(
 }
 
 /**
- * Filter models by endpoint type
+ * Filter models by endpoint type. Also accepts modality buckets
+ * (text/image/video/audio) used by the catalog category tabs.
  */
 export function filterByEndpointType(
   models: PricingModel[],
   endpointType: string
 ): PricingModel[] {
   if (endpointType === ENDPOINT_TYPES.ALL) return models
+  if (
+    endpointType === MODEL_CATEGORIES.TEXT ||
+    endpointType === MODEL_CATEGORIES.IMAGE ||
+    endpointType === MODEL_CATEGORIES.VIDEO ||
+    endpointType === MODEL_CATEGORIES.AUDIO
+  ) {
+    return models.filter(
+      (m) => getModelCategory(m.supported_endpoint_types) === endpointType
+    )
+  }
   return models.filter((m) =>
     m.supported_endpoint_types?.includes(endpointType)
   )

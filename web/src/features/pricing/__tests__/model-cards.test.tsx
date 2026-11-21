@@ -674,7 +674,7 @@ describe('model cards', () => {
     const grid = screen
       .getByRole('heading', { name: 'example-model' })
       .closest('.grid')
-    expect(grid).toHaveClass('xl:grid-cols-3')
+    expect(grid).toHaveClass('min-[1800px]:grid-cols-3')
     expect(grid).not.toHaveClass('2xl:grid-cols-3')
     expect(grid).not.toHaveClass('min-[1440px]:grid-cols-3')
   })

@@ -86,6 +86,18 @@ function getTrigger(): HTMLButtonElement {
   return screen.getByRole('combobox')
 }
 
+function expandCategory(name: string): void {
+  const header = [
+    ...document.querySelectorAll<HTMLButtonElement>(
+      'button[aria-expanded]'
+    ),
+  ].find((candidate) => candidate.textContent?.trim().startsWith(name))
+  if (!header) {
+    throw new Error(`Expected category header containing "${name}"`)
+  }
+  fireEvent.click(header)
+}
+
 function getCommandItem(label: string): HTMLElement {
   const item = [
     ...document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'),
@@ -136,6 +148,7 @@ describe('API key group combobox Auto effect', () => {
 
     fireEvent.click(trigger)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    expandCategory('Other')
 
     const autoOption = getCommandItem('Global automatic routing')
     expect(autoOption).toHaveAttribute('data-auto-group-effect', 'option')
@@ -160,16 +173,14 @@ describe('API key group combobox Auto effect', () => {
       null
     )
     const defaultRatio = within(defaultOption)
-      .getByText('1x')
+      .getByText(/^1x/)
       .closest('[data-slot="badge"]')
     expect(defaultRatio).toHaveClass(
       'h-5',
-      'min-w-12',
       'rounded-full',
-      'tabular-nums',
-      'border-muted-foreground/30'
+      'bg-emerald-500/10',
+      'border-emerald-600/40'
     )
-    expect(defaultRatio).not.toHaveTextContent('Ratio')
     expect(
       defaultOption.querySelector('[data-auto-group-effect="ratio"]')
     ).toBe(null)
@@ -215,6 +226,7 @@ describe('API key group combobox Auto effect', () => {
     expect(within(trigger).getByText('Auto')).toBeInTheDocument()
 
     fireEvent.click(trigger)
+    expandCategory('Other')
     const autoOption = getCommandItem('Global automatic routing')
     expect(autoOption).toHaveAttribute('data-auto-group-effect', 'option')
     expect(autoOption.querySelector('[data-auto-group-flow-border]')).toBe(null)

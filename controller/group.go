@@ -32,10 +32,14 @@ func GetUserGroups(c *gin.Context) {
 	for groupName, _ := range ratio_setting.GetGroupRatioCopy() {
 		// UserUsableGroups contains the groups that the user can use
 		if desc, ok := userUsableGroups[groupName]; ok {
-			usableGroups[groupName] = map[string]any{
+			groupInfo := map[string]any{
 				"ratio": service.GetUserGroupRatio(userGroup, groupName),
 				"desc":  desc,
 			}
+			if category, ok := setting.GetUserGroupCategory(groupName); ok && category != "" {
+				groupInfo["category"] = category
+			}
+			usableGroups[groupName] = groupInfo
 		}
 	}
 	if _, ok := userUsableGroups["auto"]; ok {

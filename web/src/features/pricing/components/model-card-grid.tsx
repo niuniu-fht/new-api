@@ -93,10 +93,14 @@ export const ModelCardGrid = memo(function ModelCardGrid(
 
   return (
     <div className='flex flex-col gap-4 sm:gap-5'>
-      <div className='grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3'>
-        {pagedModels.map((model) => (
-          <ModelCard
+      <div className='grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 min-[1800px]:grid-cols-3'>
+        {pagedModels.map((model, modelIndex) => (
+          <div
             key={model.id ?? model.model_name}
+            className='animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-300'
+            style={{ animationDelay: `${Math.min(modelIndex, 11) * 45}ms` }}
+          >
+            <ModelCard
             model={model}
             tokenUnit={tokenUnit}
             priceRate={props.priceRate}
@@ -105,7 +109,8 @@ export const ModelCardGrid = memo(function ModelCardGrid(
             selectedGroup={props.selectedGroup}
             perf={perfMap.get(model.model_name || '')}
             onClick={props.onModelClick}
-          />
+            />
+          </div>
         ))}
       </div>
 

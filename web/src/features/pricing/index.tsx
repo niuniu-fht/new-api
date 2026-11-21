@@ -27,12 +27,14 @@ import {
   EmptyState,
   SearchBar,
   PricingTable,
-  PricingSidebar,
   PricingToolbar,
   ModelCardGrid,
   ModelDetailsDrawer,
+  PricingCategoryTabs,
+  PricingVendorChips,
 } from './components'
 import { EXCLUDED_GROUPS, VIEW_MODES } from './constants'
+import { filterByEndpointType } from './lib/filters'
 import { useFilters } from './hooks/use-filters'
 import { usePricingData } from './hooks/use-pricing-data'
 
@@ -110,13 +112,34 @@ export function Pricing() {
     clearSearch()
   }, [clearFilters, clearSearch])
 
+  // Models visible in the active category tab; drives the vendor chip counts.
+  const categoryModels = useMemo(
+    () => filterByEndpointType(models || [], endpointTypeFilter),
+    [models, endpointTypeFilter]
+  )
+
   const renderPricingContent = () => {
     if (filteredModels.length === 0) {
+      const categoryActive =
+        endpointTypeFilter !== 'all' || vendorFilter !== 'all'
       return (
         <EmptyState
           searchQuery={searchInput}
           hasActiveFilters={hasActiveFilters}
           onClearFilters={handleClearAll}
+          actionLabel={
+            !searchInput.trim() && categoryActive
+              ? t('View all models')
+              : undefined
+          }
+          onAction={
+            !searchInput.trim() && categoryActive
+              ? () => {
+                  setEndpointTypeFilter('all')
+                  setVendorFilter('all')
+                }
+              : undefined
+          }
         />
       )
     }
@@ -177,20 +200,24 @@ export function Pricing() {
           }}
         />
         <PageTransition className='relative mx-auto w-full max-w-[1800px] px-3 pt-16 pb-8 sm:px-6 sm:pt-20 sm:pb-10 xl:px-8'>
-          <header className='mx-auto mb-5 max-w-3xl pt-5 text-center sm:mb-10 sm:pt-10'>
-            <h1 className='text-[clamp(2rem,5.5vw,3.5rem)] leading-[1.15] font-bold tracking-tight'>
-              {t('Model Square')}
-            </h1>
-            <p className='text-muted-foreground/80 mt-3 text-sm sm:mt-4 sm:text-base'>
-              {t('This site currently has {{count}} models enabled', {
-                count: models?.length || 0,
-              })}
-            </p>
-            <p className='text-muted-foreground/60 mx-auto mt-2 max-w-2xl text-xs leading-relaxed sm:text-sm'>
-              {t(
-                'Discover curated AI models, compare pricing and capabilities, and choose the right model for every scenario.'
-              )}
-            </p>
+          <header className='border-border/70 mb-4 flex flex-col gap-4 border-b pb-5 pt-5 sm:mb-5 sm:flex-row sm:items-end sm:justify-between sm:gap-8'>
+            <div className='min-w-0'>
+              <p className='text-primary/70 mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase'>
+                MODEL / CATALOG
+              </p>
+              <h1 className='text-[clamp(2rem,4vw,3rem)] leading-none font-bold tracking-tight'>
+                {t('Model Square')}
+              </h1>
+              <p className='text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed'>
+                {t('This site currently has {{count}} models enabled', {
+                  count: models?.length || 0,
+                })}
+                <span className='text-muted-foreground/45 mx-2'>/</span>
+                {t(
+                  'Discover curated AI models, compare pricing and capabilities, and choose the right model for every scenario.'
+                )}
+              </p>
+            </div>
             <SearchBar
               value={searchInput}
               onChange={setSearchInput}
@@ -198,32 +225,28 @@ export function Pricing() {
               placeholder={t(
                 'Search model name, provider, endpoint, or tag...'
               )}
-              className='mx-auto mt-4 max-w-2xl sm:mt-6'
+              className='w-full sm:max-w-sm'
             />
           </header>
 
-          <div className='grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]'>
-            <PricingSidebar
-              quotaTypeFilter={quotaTypeFilter}
-              endpointTypeFilter={endpointTypeFilter}
-              vendorFilter={vendorFilter}
-              groupFilter={groupFilter}
-              tagFilter={tagFilter}
-              onQuotaTypeChange={setQuotaTypeFilter}
-              onEndpointTypeChange={setEndpointTypeFilter}
-              onVendorChange={setVendorFilter}
-              onGroupChange={setGroupFilter}
-              onTagChange={setTagFilter}
-              vendors={vendors || []}
-              groups={availableGroups}
-              groupRatios={groupRatio}
-              tags={availableTags}
+          <section
+            aria-label={t('Model Categories')}
+            className='border-border/70 mb-4 flex flex-col gap-4 border-y py-4 lg:gap-5'
+          >
+            <PricingCategoryTabs
               models={models || []}
-              hasActiveFilters={hasActiveFilters}
-              onClearFilters={clearFilters}
-              className='hover-scrollbar sticky top-20 hidden max-h-[calc(100dvh-6rem)] self-start overflow-y-auto xl:block'
+              value={endpointTypeFilter}
+              onChange={setEndpointTypeFilter}
             />
+            <PricingVendorChips
+              vendors={vendors || []}
+              models={categoryModels}
+              value={vendorFilter}
+              onChange={setVendorFilter}
+            />
+          </section>
 
+          <div className='space-y-4 sm:space-y-5'>
             <main className='min-w-0 space-y-4'>
               <PricingToolbar
                 filteredCount={filteredModels.length}
