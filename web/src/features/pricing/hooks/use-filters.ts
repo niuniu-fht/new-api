@@ -76,17 +76,8 @@ export function useFilters(models: PricingModel[]) {
   const quotaTypeFilter = filterState.quotaType || QUOTA_TYPES.ALL
   const endpointTypeFilter = filterState.endpointType || ENDPOINT_TYPES.ALL
   const tagFilter = filterState.tag || FILTER_ALL
-  const tokenUnit: TokenUnit = (() => {
-    if (filterState.tokenUnit === 'K') return 'K'
-    if (filterState.tokenUnit === 'M') return 'M'
-    try {
-      const saved = localStorage.getItem('newapi:token-unit')
-      if (saved === 'K' || saved === 'M') return saved
-    } catch {
-      // storage unavailable; fall through to default
-    }
-    return DEFAULT_TOKEN_UNIT
-  })()
+  const tokenUnit: TokenUnit =
+    filterState.tokenUnit === 'K' ? 'K' : DEFAULT_TOKEN_UNIT
   const viewMode = normalizeViewMode(filterState.view)
   const showRechargePrice = filterState.rechargePrice === true
 
@@ -136,14 +127,8 @@ export function useFilters(models: PricingModel[]) {
     [updateFilters]
   )
   const setTokenUnit = useCallback(
-    (v: TokenUnit) => {
-      updateFilters({ tokenUnit: v === DEFAULT_TOKEN_UNIT ? undefined : v })
-      try {
-        localStorage.setItem('newapi:token-unit', v)
-      } catch {
-        // storage unavailable; skip remembering
-      }
-    },
+    (v: TokenUnit) =>
+      updateFilters({ tokenUnit: v === DEFAULT_TOKEN_UNIT ? undefined : v }),
     [updateFilters]
   )
   const setViewMode = useCallback(

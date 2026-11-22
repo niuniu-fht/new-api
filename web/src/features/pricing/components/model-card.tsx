@@ -232,7 +232,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
     priceSummary = prices.map((price) => (
       <div key={price.type} className='flex min-w-0 flex-col gap-1'>
         <span className='text-muted-foreground text-xs'>{price.label}</span>
-        <span className='font-mono text-base font-semibold tabular-nums sm:text-lg'>
+        <span className='font-mono text-sm font-semibold tabular-nums'>
           {formatPrice(
             model,
             price.type,
@@ -252,7 +252,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   } else {
     priceSummary = (
       <div className='col-span-full flex min-w-0 flex-col gap-1'>
-        <span className='font-mono text-base font-semibold tabular-nums sm:text-lg'>
+        <span className='font-mono text-sm font-semibold tabular-nums'>
           {formatRequestPrice(
             model,
             showRechargePrice,
